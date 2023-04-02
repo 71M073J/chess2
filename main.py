@@ -36,7 +36,11 @@ def get_pieces(x_square_size, y_square_size):
             img = pygame.image.load(f"./JohnPablok Cburnett Chess set/PNGs/No shadow/1x/{sets}_{piece}_1x_ns.png")
             img = pygame.transform.scale(img, (x_square_size * 0.8, y_square_size * 0.8))
             pieces[sets][piece] = img
-
+        name = "sPawn"
+        img = pygame.image.load(f"./JohnPablok Cburnett Chess set/PNGs/No shadow/1x/{sets}_pawn_1x_ns.png")
+        img = pygame.transform.rotate(img, 180.)
+        img = pygame.transform.scale(img, (x_square_size * 0.8, y_square_size * 0.8))
+        pieces[sets][name] = img
     return pieces
 
 
@@ -94,26 +98,53 @@ def move_piece(tox, toy, selected, xoffset, yoffset, x_square_size, y_square_siz
     playing_field[selected.location[0]][selected.location[1]].piece = None
 
 
-def can_move_here(origin, target, playing_field, ):  # TODO
+def can_move_here(origin, target, playing_field, moves, ):  # TODO
     if target.piece is not None and target.piece.colour == origin.piece.colour:
-        return False
+        return False, ""
     if not target.passable and origin.piece.type != "knight":
-        return False
+        return False, ""
     piece = origin.piece
     ptype = piece.type
     x, y = origin.location
     print(x, y, target.location)
-    if ptype == "pawn":
-        if 1 < (y + piece.movement_direction) < 10:
-            if (((x, y + piece.movement_direction) == target.location) or
-                ((x, y + (piece.movement_direction * 2)) == target.location and piece.has_not_moved)) \
-                    and target.piece is None:
-                print("premik naravnost, brez požiranja")
-                return True
-            if (((x + 1, y + piece.movement_direction) == target.location) or
-                ((x - 1, y + piece.movement_direction) == target.location)) and target.piece is not None:
-                print("požiranje")
-                return True
+    if ptype == "pawn" or ptype == "sPawn":
+        #TODO en passant is forced
+        #TODO en passant actual condition kekw
+        #TODO return also move name, if applicable (omega passant...)
+        same_row = (moves[-1][2] == y) if moves else False
+        if (((x, y + piece.movement_direction) == target.location) or
+            ((x, y + (piece.movement_direction * 2)) == target.location and piece.has_not_moved)) \
+                and target.piece is None:
+            return True, "moveup"
+        if (((x + 1, y + piece.movement_direction) == target.location) or
+                ((x - 1, y + piece.movement_direction) == target.location)):
+            if target.piece is not None:
+                return True, "capture"
+            elif same_row and moves:
+                if moves[-1][1] == x - 1:
+                    playing_field[x-1][y].piece = None
+                    clear_square(x-1, y, xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[x-1][y])
+                    return True, "enpassant"
+                if moves[-1][1] == x + 1:
+                    playing_field[x+1][y].piece = None
+                    clear_square(x+1, y, xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[x+1][y])
+                    return True, "enpassant"
+        if same_row and (((x + 2, y + piece.movement_direction * 2) == target.location) or
+                         ((x - 2, y + piece.movement_direction * 2) == target.location)) and (target.piece is None):
+            playing_field[moves[-1][1]][moves[-1][2]].piece = None
+            clear_square(moves[-1][1], moves[-1][2], xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[moves[-1][1]][moves[-1][2]])
+            ...
+            return True, "omegapassant"
+        if 0 <= (y + piece.movement_direction) <= 11 and not playing_field[x][y + piece.movement_direction].passable:
+            newname = "sPawn" if ptype == "pawn" else "pawn"
+            for yoff in range(1,12):
+                if playing_field[x][y - piece.movement_direction * yoff].piece is None:
+                    if target.location == (x, y - piece.movement_direction * yoff):
+                        playing_field[x][y - piece.movement_direction * yoff].piece = Piece(ptype=newname, direction=piece.movement_direction * -1, colour=piece.colour)
+                        draw_piece(piece.colour, newname, xoffset, yoffset, x_square_size, y_square_size, x - 1, y -1 - piece.movement_direction * yoff)
+                        return True, "sPawn"
+
+
         ...
     elif ptype == "knight":
         if (target.location[0] + 1 == x and target.location[1] + 2 == y) or \
@@ -124,46 +155,45 @@ def can_move_here(origin, target, playing_field, ):  # TODO
                 (target.location[0] + 2 == x and target.location[1] - 1 == y) or \
                 (target.location[0] - 2 == x and target.location[1] + 1 == y) or \
                 (target.location[0] - 2 == x and target.location[1] - 1 == y):
-            return True
+            return True, "nite"
 
         ...
     elif ptype == "bishop":
         # if ((x + y) % 2) == ((target.location[0] + target.location[1]) % 2) and \
         if not collision(origin, target, playing_field) and ((target.location[0], target.location[1]) in
-                                                             [(x + mvs, y + mvs) for mvs in range(1, 8)] +
-                                                             [(x + mvs, y - mvs) for mvs in range(1, 8)] +
-                                                             [(x - mvs, y + mvs) for mvs in range(1, 8)] +
-                                                             [(x - mvs, y - mvs) for mvs in range(1, 8)]):
-            # TODO check if pieces are in between
-            return True
+                                                             [(x + mvs, y + mvs) for mvs in range(1, 12)] +
+                                                             [(x + mvs, y - mvs) for mvs in range(1, 12)] +
+                                                             [(x - mvs, y + mvs) for mvs in range(1, 12)] +
+                                                             [(x - mvs, y - mvs) for mvs in range(1, 12)]):
+            return True, "shop"
         ...
     elif ptype == "rook":
         if not collision(origin, target, playing_field) and (
                 (x == target.location[0]) ^ (y == target.location[1])):  # to je xor
-            return True
+            return True, "lethimcook"
         ...
     elif ptype == "queen":
         if not collision(origin, target, playing_field) and (
                 (x == target.location[0]) ^ (y == target.location[1]) or ((target.location[0], target.location[1]) in
-                                                                          [(x + mvs, y + mvs) for mvs in range(8)] +
-                                                                          [(x + mvs, y - mvs) for mvs in range(8)] +
-                                                                          [(x - mvs, y + mvs) for mvs in range(8)] +
-                                                                          [(x - mvs, y - mvs) for mvs in range(8)])):
-            return True
+                                                                          [(x + mvs, y + mvs) for mvs in range(12)] +
+                                                                          [(x + mvs, y - mvs) for mvs in range(12)] +
+                                                                          [(x - mvs, y + mvs) for mvs in range(12)] +
+                                                                          [(x - mvs, y - mvs) for mvs in range(12)])):
+            return True, "qbeen"
         ...
     elif ptype == "king":
         # print(x, target.location[0], y, target.location[1])
         if abs(x - target.location[0]) < 2 and abs(y - target.location[1]) < 2:  # \
             # and 1 < target.location[0] < 10 and 1 < target.location[1] < 10:
-            return True
+            return True, "kink"
         ...
-    return False
+    return False, ""
 
 
 def collision(source, stop, playing_field):
     x1, y1 = source.location
     x2, y2 = stop.location
-    #if not (1 < x2 < 10) or not (1 < y2 < 10):
+    # if not (1 < x2 < 10) or not (1 < y2 < 10):
     #    return True
     d1, d2 = 1 if x1 > x2 else -1 if x2 > x1 else 0, 1 if y1 > y2 else -1 if y2 > y1 else 0
     x1 -= d1
@@ -283,7 +313,7 @@ if __name__ == '__main__':
     prev = None
     moves = []
     clicked = 0
-    #TODO moves has row/col of prev moves, for el passant and that shit
+    # TODO moves has row/col of prev moves, for el passant and that shit
     while running:
 
         # Did the user click the window close button?
@@ -307,7 +337,8 @@ if __name__ == '__main__':
                         print("Selected:", selected.name, selected.piece.type, clicked.location)
                 else:
                     print(clicked.location, "Selected:", selected.name)
-                    if can_move_here(selected, clicked, playing_field):  # TODO namesto tega if (can_move_here)
+                    mv, action = can_move_here(selected, clicked, playing_field, moves)
+                    if mv:
                         pygame.draw.rect(screen, background_colour,
                                          (0, 0, xoffset, height))
                         text = font2.render(
@@ -323,8 +354,9 @@ if __name__ == '__main__':
                         print("row, col:", row, col)
                         # where_can_move(selected, clicked, playing_field)
                         print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
-                        move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size, playing_field,
-                                   clicked)
+                        if action not in ["sPawn"]:
+                            move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size, playing_field,
+                                       clicked)
 
                         selected = None
 
@@ -334,6 +366,9 @@ if __name__ == '__main__':
                     print("Deselecting", selected.name, selected.piece.name)
                     # playing_field[selected.location[0]][selected.location[1]] = selected.piece
                     selected = None
+            elif selected is not None and event.type == pygame.MOUSEMOTION:
+                # TODO convert pieces to sprites and only move sprite, then move selected piece with the mouse
+                ...
 
         draw_letters(xoffset, yoffset, x_square_size, y_square_size, font)
         pygame.display.flip()
