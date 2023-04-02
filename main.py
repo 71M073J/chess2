@@ -1,7 +1,7 @@
 import pygame
 
 rows = ["-B", "-A"] + ["A", "B", "C", "D", "E", "F", "G", "H"] + ["-H", "-G"]
-cols = ["-7", "-8"] + [str(x + 1) for x in range(8)][::-1] + ["-1", "-2"]
+cols = ["10", "9"] + [str(x + 1) for x in range(8)][::-1] + ["-1", "-2"]
 width = 1280
 height = 800
 starts = "black"
@@ -73,14 +73,18 @@ def draw_dot(colour, piece, xoffset, yoffset, x_square_size, y_square_size, row,
     pygame.display.update()
 
 
-def clear_square(i, j, xoffset, yoffset, x_square_size, y_square_size, piece, tile):
+def clear_square(i, j, xoffset, yoffset, x_square_size, y_square_size, piece, tile, override=False, override_color=background_colour):
     print(i, j)
-    if tile.passable or (1 < i < 10 and 1 < j < 10) or piece == "knight":
-        pygame.draw.rect(screen, black_colour if (i + j) % 2 == 1 else white_colour,
+    if not override:
+        if tile.passable or (1 < i < 10 and 1 < j < 10) or piece == "knight":
+            pygame.draw.rect(screen, black_colour if (i + j) % 2 == 1 else white_colour,
+                             (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
+            tile.passable = True
+        else:
+            pygame.draw.rect(screen, background_colour,
                          (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
-        tile.passable = True
     else:
-        pygame.draw.rect(screen, background_colour,
+        pygame.draw.rect(screen, override_color,
                          (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
 
 
@@ -129,8 +133,8 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                     playing_field[x+1][y].piece = None
                     clear_square(x+1, y, xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[x+1][y])
                     return True, "enpassant"
-        if same_row and (((x + 2, y + piece.movement_direction * 2) == target.location) or
-                         ((x - 2, y + piece.movement_direction * 2) == target.location)) and (target.piece is None):
+        if same_row and ((((x + 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] > x)) or
+                         (((x - 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] < x))) and (target.piece is None):
             playing_field[moves[-1][1]][moves[-1][2]].piece = None
             clear_square(moves[-1][1], moves[-1][2], xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[moves[-1][1]][moves[-1][2]])
             ...
@@ -143,7 +147,15 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                         playing_field[x][y - piece.movement_direction * yoff].piece = Piece(ptype=newname, direction=piece.movement_direction * -1, colour=piece.colour)
                         draw_piece(piece.colour, newname, xoffset, yoffset, x_square_size, y_square_size, x - 1, y -1 - piece.movement_direction * yoff)
                         return True, "sPawn"
-
+        if ((x + 1, y) == target.location) or ((x - 1, y) == target.location) and \
+                sum([(playing_field[x,y].piece.type in ["pawn", "sPawn"])
+                 for x,y in [(target.location[0] + 1, target.location[1]),
+                             (target.location[0] - 1, target.location[1]),
+                             (target.location[0], target.location[1] + 1),
+                             (target.location[0], target.location[1] - 1)]]) >= 3:
+            target.passable = False
+            clear_square(target.location[0], target.location[1], xoffset, yoffset, x_square_size, y_square_size, None, None, override=True)
+            return True, "dig"
 
         ...
     elif ptype == "knight":
@@ -354,7 +366,7 @@ if __name__ == '__main__':
                         print("row, col:", row, col)
                         # where_can_move(selected, clicked, playing_field)
                         print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
-                        if action not in ["sPawn"]:
+                        if action not in ["sPawn", "dig"]:
                             move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size, playing_field,
                                        clicked)
 
