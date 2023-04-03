@@ -8,6 +8,7 @@ starts = "black"
 white_colour = (170, 110, 150)
 black_colour = (0, 0, 0)
 background_colour = (118, 150, 86)
+pieces = {}
 
 
 class Tile:
@@ -17,6 +18,7 @@ class Tile:
         self.piece = None
         self.name = rows[location[0]] + cols[location[1]]
         self.location = location
+        self.colour = "white" if ((location[0] + location[1]) % 2 == 1) else "black"
 
 
 class Piece:
@@ -29,7 +31,6 @@ class Piece:
 
 
 def get_pieces(x_square_size, y_square_size):
-    pieces = {}
     for sets in ["b", "w"]:
         pieces[sets] = {}
         for piece in ["pawn", "knight", "bishop", "rook", "queen", "king"]:
@@ -73,8 +74,9 @@ def draw_dot(colour, piece, xoffset, yoffset, x_square_size, y_square_size, row,
     pygame.display.update()
 
 
-def clear_square(i, j, xoffset, yoffset, x_square_size, y_square_size, piece, tile, override=False, override_color=background_colour):
-    print(i, j)
+def clear_square(i, j, xoffset, yoffset, x_square_size, y_square_size, piece, tile, override=False,
+                 override_color=background_colour):
+    print(i, j, "Cleared")
     if not override:
         if tile.passable or (1 < i < 10 and 1 < j < 10) or piece == "knight":
             pygame.draw.rect(screen, black_colour if (i + j) % 2 == 1 else white_colour,
@@ -82,7 +84,7 @@ def clear_square(i, j, xoffset, yoffset, x_square_size, y_square_size, piece, ti
             tile.passable = True
         else:
             pygame.draw.rect(screen, background_colour,
-                         (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
+                             (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
     else:
         pygame.draw.rect(screen, override_color,
                          (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
@@ -110,11 +112,11 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
     piece = origin.piece
     ptype = piece.type
     x, y = origin.location
-    print(x, y, target.location)
+    #print(x, y, target.location)
     if ptype == "pawn" or ptype == "sPawn":
-        #TODO en passant is forced
-        #TODO en passant actual condition kekw
-        #TODO return also move name, if applicable (omega passant...)
+        # TODO en passant is forced
+        # TODO en passant actual condition kekw
+        # TODO return also move name, if applicable (omega passant...)
         same_row = (moves[-1][2] == y) if moves else False
         if (((x, y + piece.movement_direction) == target.location) or
             ((x, y + (piece.movement_direction * 2)) == target.location and piece.has_not_moved)) \
@@ -126,35 +128,46 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                 return True, "capture"
             elif same_row and moves:
                 if moves[-1][1] == x - 1:
-                    playing_field[x-1][y].piece = None
-                    clear_square(x-1, y, xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[x-1][y])
+                    playing_field[x - 1][y].piece = None
+                    clear_square(x - 1, y, xoffset, yoffset, x_square_size, y_square_size, ptype,
+                                 playing_field[x - 1][y])
                     return True, "enpassant"
                 if moves[-1][1] == x + 1:
-                    playing_field[x+1][y].piece = None
-                    clear_square(x+1, y, xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[x+1][y])
+                    playing_field[x + 1][y].piece = None
+                    clear_square(x + 1, y, xoffset, yoffset, x_square_size, y_square_size, ptype,
+                                 playing_field[x + 1][y])
                     return True, "enpassant"
         if same_row and ((((x + 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] > x)) or
-                         (((x - 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] < x))) and (target.piece is None):
+                         (((x - 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] < x))) and (
+                target.piece is None) and not collision(origin, target, playing_field):
             playing_field[moves[-1][1]][moves[-1][2]].piece = None
-            clear_square(moves[-1][1], moves[-1][2], xoffset, yoffset, x_square_size, y_square_size, ptype, playing_field[moves[-1][1]][moves[-1][2]])
+            clear_square(moves[-1][1], moves[-1][2], xoffset, yoffset, x_square_size, y_square_size, ptype,
+                         playing_field[moves[-1][1]][moves[-1][2]])
             ...
             return True, "omegapassant"
-        if 0 <= (y + piece.movement_direction) <= 11 and not playing_field[x][y + piece.movement_direction].passable:
+        if (y + piece.movement_direction < 0) or (y + piece.movement_direction > 11) or not playing_field[x][y + piece.movement_direction].passable:
             newname = "sPawn" if ptype == "pawn" else "pawn"
-            for yoff in range(1,12):
-                if playing_field[x][y - piece.movement_direction * yoff].piece is None:
-                    if target.location == (x, y - piece.movement_direction * yoff):
-                        playing_field[x][y - piece.movement_direction * yoff].piece = Piece(ptype=newname, direction=piece.movement_direction * -1, colour=piece.colour)
-                        draw_piece(piece.colour, newname, xoffset, yoffset, x_square_size, y_square_size, x - 1, y -1 - piece.movement_direction * yoff)
-                        return True, "sPawn"
-        if ((x + 1, y) == target.location) or ((x - 1, y) == target.location) and \
-                sum([(playing_field[x,y].piece.type in ["pawn", "sPawn"])
-                 for x,y in [(target.location[0] + 1, target.location[1]),
-                             (target.location[0] - 1, target.location[1]),
-                             (target.location[0], target.location[1] + 1),
-                             (target.location[0], target.location[1] - 1)]]) >= 3:
+            for yoff in range(1, 12):
+                if 0 <= (y - piece.movement_direction * yoff) <= 11:
+                    if playing_field[x][y - piece.movement_direction * yoff].piece is None:
+                        if target.location == (x, y - piece.movement_direction * yoff):
+                            playing_field[x][y - piece.movement_direction * yoff].piece = Piece(ptype=newname,
+                                                                                                direction=piece.movement_direction * -1,
+                                                                                                colour=piece.colour)
+                            draw_piece(piece.colour, newname, xoffset, yoffset, x_square_size, y_square_size, x - 1,
+                                       y - 1 - piece.movement_direction * yoff)
+                            return True, "sPawn"
+                        else:
+                            break
+        if (((x + 1, y) == target.location) or ((x - 1, y) == target.location)) and target.piece is None and\
+                sum([(playing_field[x][y].piece.type in ["pawn", "sPawn"])
+                     for x, y in [(target.location[0] + 1, target.location[1]),
+                                  (target.location[0] - 1, target.location[1]),
+                                  (target.location[0], target.location[1] + 1),
+                                  (target.location[0], target.location[1] - 1)] if playing_field[x][y].piece is not None]) >= 3:
             target.passable = False
-            clear_square(target.location[0], target.location[1], xoffset, yoffset, x_square_size, y_square_size, None, None, override=True)
+            clear_square(target.location[0], target.location[1], xoffset, yoffset, x_square_size, y_square_size, None,
+                         None, override=True)
             return True, "dig"
 
         ...
@@ -183,15 +196,29 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
         if not collision(origin, target, playing_field) and (
                 (x == target.location[0]) ^ (y == target.location[1])):  # to je xor
             return True, "lethimcook"
+        #elif 1 < piece.location[1] < 9 and target.location[0] == piece.location[0] and target.location[1]
         ...
     elif ptype == "queen":
-        if not collision(origin, target, playing_field) and (
+        coll, coords = collision(origin, target, playing_field, ret_coord=True)
+        if not coll and (
                 (x == target.location[0]) ^ (y == target.location[1]) or ((target.location[0], target.location[1]) in
                                                                           [(x + mvs, y + mvs) for mvs in range(12)] +
                                                                           [(x + mvs, y - mvs) for mvs in range(12)] +
                                                                           [(x - mvs, y + mvs) for mvs in range(12)] +
                                                                           [(x - mvs, y - mvs) for mvs in range(12)])):
             return True, "qbeen"
+        elif coll and target.piece is None:
+            x1, y1 = origin.location
+            x2, y2 = target.location
+            d1, d2 = 1 if x1 > x2 else -1 if x2 > x1 else 0, 1 if y1 > y2 else -1 if y2 > y1 else 0
+            spot = playing_field[target.location[0] + d1][target.location[1] + d2]
+            if spot.piece is not None and spot.location == coords:
+                if spot.piece.colour == origin.piece.colour:
+                    spot.piece = None
+                    clear_square(target.location[0] + d1, target.location[1] + d2, xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 spot)
+                return True, "teleports behind you"
         ...
     elif ptype == "king":
         # print(x, target.location[0], y, target.location[1])
@@ -202,7 +229,7 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
     return False, ""
 
 
-def collision(source, stop, playing_field):
+def collision(source, stop, playing_field, ret_coord=False):
     x1, y1 = source.location
     x2, y2 = stop.location
     # if not (1 < x2 < 10) or not (1 < y2 < 10):
@@ -210,15 +237,26 @@ def collision(source, stop, playing_field):
     d1, d2 = 1 if x1 > x2 else -1 if x2 > x1 else 0, 1 if y1 > y2 else -1 if y2 > y1 else 0
     x1 -= d1
     y1 -= d2
-    if (x1, y1) == stop.location:
+    if not ret_coord:
+        if (x1, y1) == stop.location:
+            return False
+        while x1 != x2 or y1 != y2:
+            spot = playing_field[x1][y1]
+            if spot.piece is not None or not spot.passable:
+                return True
+            x1 -= d1
+            y1 -= d2
         return False
-    while x1 != x2 or y1 != y2:
-        spot = playing_field[x1][y1]
-        if spot.piece is not None or not spot.passable:
-            return True
-        x1 -= d1
-        y1 -= d2
-    return False
+    else:
+        if (x1, y1) == stop.location:
+            return False, (x1, y1)
+        while x1 != x2 or y1 != y2:
+            spot = playing_field[x1][y1]
+            if spot.piece is not None or not spot.passable:
+                return True, (x1, y1)
+            x1 -= d1
+            y1 -= d2
+        return False, (x1, y1)
 
 
 def where_can_move(origin: Tile, target: Tile, playing_field, ):
@@ -248,24 +286,10 @@ def where_can_move(origin: Tile, target: Tile, playing_field, ):
     print(defmap)
 
 
-if __name__ == '__main__':
-    pygame.init()
-
-    font = pygame.font.Font('freesansbold.ttf', 22)
-    font2 = pygame.font.Font('freesansbold.ttf', 18)
-    # Set up the drawing window
-    screen = pygame.display.set_mode([width, height])
+def setup_playing_field(screen, xoffset, yoffset, x_square_size, y_square_size, ):
 
     # Fill the background with white*
     screen.fill(background_colour)
-
-    minv = min(width, height)
-    xoffset = (width - height) // 2
-    if xoffset < 0:
-        xoffset = 0
-    yoffset = 0
-    x_square_size = minv // 12
-    y_square_size = minv // 12
     pygame.draw.rect(screen, white_colour,
                      (2 * x_square_size + xoffset, 2 * y_square_size, 8 * x_square_size, 8 * y_square_size))
     for i in range(12):
@@ -319,12 +343,30 @@ if __name__ == '__main__':
 
     # Flip the display
     pygame.display.flip()
+    return pieces, playing_field, cmap, [], None, None, 0
+
+
+if __name__ == '__main__':
+    pygame.init()
+
+    font = pygame.font.Font('freesansbold.ttf', 22)
+    font2 = pygame.font.Font('freesansbold.ttf', 18)
+    # Set up the drawing window
+    screen = pygame.display.set_mode([width, height])
+
+
+    minv = min(width, height)
+    xoffset = (width - height) // 2
+    if xoffset < 0:
+        xoffset = 0
+    yoffset = 0
+    x_square_size = minv // 12
+    y_square_size = minv // 12
+
+    pieces, playing_field, cmap, moves, selected, prev, clicked = setup_playing_field(screen, xoffset, yoffset,
+                                                                                      x_square_size, y_square_size, )
     # Run until the user asks to quit
     running = True
-    selected = None
-    prev = None
-    moves = []
-    clicked = 0
     # TODO moves has row/col of prev moves, for el passant and that shit
     while running:
 
@@ -363,11 +405,12 @@ if __name__ == '__main__':
                             textRect.top = 20 + i * y_square_size * 0.5
                             screen.blit(t, textRect)
 
-                        print("row, col:", row, col)
+                        #print("row, col:", row, col)
                         # where_can_move(selected, clicked, playing_field)
                         print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
                         if action not in ["sPawn", "dig"]:
-                            move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size, playing_field,
+                            move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size,
+                                       playing_field,
                                        clicked)
 
                         selected = None
@@ -381,6 +424,12 @@ if __name__ == '__main__':
             elif selected is not None and event.type == pygame.MOUSEMOTION:
                 # TODO convert pieces to sprites and only move sprite, then move selected piece with the mouse
                 ...
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+
+                    pieces, playing_field, cmap, moves, selected, prev, clicked = \
+                        setup_playing_field(screen, xoffset, yoffset, x_square_size, y_square_size, )
+                    pygame.draw.rect(screen, background_colour, (0, 0, xoffset, height))
 
         draw_letters(xoffset, yoffset, x_square_size, y_square_size, font)
         pygame.display.flip()
