@@ -126,7 +126,7 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                 ((x - 1, y + piece.movement_direction) == target.location)):
             if target.piece is not None:
                 return True, "capture"
-            elif same_row and moves and (x - piece.movement_direction == 4):
+            elif same_row and moves and (piece.movement_direction * (y - 2) % 8 + (piece.movement_direction > 0)) == 5:
                 if moves[-1][1] == x - 1:
                     playing_field[x - 1][y].piece = None
                     clear_square(x - 1, y, xoffset, yoffset, x_square_size, y_square_size, ptype,
@@ -137,13 +137,13 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                     clear_square(x + 1, y, xoffset, yoffset, x_square_size, y_square_size, ptype,
                                  playing_field[x + 1][y])
                     return True, "enpassant"
-        if same_row and ((((x + 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] > x)) or
+        if same_row and (piece.movement_direction * (y - 2) % 8 + (piece.movement_direction > 0)) == 5 and (
+                (((x + 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] > x)) or
                          (((x - 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] < x))) and (
-                target.piece is None) and not collision(origin, target, playing_field):
+                target.piece is None) and not collision(origin, target, playing_field) and not collision(origin, playing_field[moves[-1][-1],moves[-1][2]], playing_field):
             playing_field[moves[-1][1]][moves[-1][2]].piece = None
             clear_square(moves[-1][1], moves[-1][2], xoffset, yoffset, x_square_size, y_square_size, ptype,
                          playing_field[moves[-1][1]][moves[-1][2]])
-            ...
             return True, "omegapassant"
         if (y + piece.movement_direction < 0) or (y + piece.movement_direction > 11) or not playing_field[x][y + piece.movement_direction].passable:
             newname = "sPawn" if ptype == "pawn" else "pawn"
