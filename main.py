@@ -9,7 +9,7 @@ white_colour = (170, 110, 150)
 black_colour = (0, 0, 0)
 background_colour = (118, 150, 86)
 pieces = {}
-
+queening = False
 
 class Tile:
     def __init__(self, location, ttype="normal", passable=True):
@@ -105,7 +105,7 @@ def move_piece(tox, toy, selected, xoffset, yoffset, x_square_size, y_square_siz
 
 
 def can_move_here(origin, target, playing_field, moves, ):  # TODO
-    if target.piece is not None and target.piece.colour == origin.piece.colour:
+    if target.piece is not None and target.piece.colour == origin.piece.colour and origin.piece.type != "king":
         return False, ""
     if not target.passable and origin.piece.type != "knight":
         return False, ""
@@ -126,7 +126,7 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                 ((x - 1, y + piece.movement_direction) == target.location)):
             if target.piece is not None:
                 return True, "capture"
-            elif same_row and moves:
+            elif same_row and moves and (x - piece.movement_direction == 4):
                 if moves[-1][1] == x - 1:
                     playing_field[x - 1][y].piece = None
                     clear_square(x - 1, y, xoffset, yoffset, x_square_size, y_square_size, ptype,
@@ -225,7 +225,18 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
         if abs(x - target.location[0]) < 2 and abs(y - target.location[1]) < 2:  # \
             # and 1 < target.location[0] < 10 and 1 < target.location[1] < 10:
             return True, "kink"
-        ...
+
+        elif piece.has_not_moved:
+            print(target.location)
+            rownum = origin.location[1]
+            if target.location[0] == 4 and playing_field[2][rownum].piece is not None and playing_field[2][rownum].piece.has_not_moved:
+                move_piece(5,rownum, playing_field[2][rownum], xoffset, yoffset, x_square_size, y_square_size, playing_field, playing_field[5][rownum])
+                return True, "castling"
+            elif target.location[0] == 8 and playing_field[9][rownum].piece is not None and playing_field[9][rownum].piece.has_not_moved:
+                move_piece(7,rownum, playing_field[9][rownum], xoffset, yoffset, x_square_size, y_square_size, playing_field, playing_field[7][rownum])
+                return True, "castling"
+
+
     return False, ""
 
 
@@ -383,37 +394,43 @@ if __name__ == '__main__':
                     continue
                 prev = clicked
                 clicked = playing_field[row][col]
-                if prev == clicked and selected is not None:
-                    print(clicked.location, "Selected:", selected.name)
-                if selected is None:
-                    if clicked.piece is not None and clicked.piece.colour == ("w" if len(moves) % 2 == 0 else "b"):
-                        selected = clicked
-                        print("Selected:", selected.name, selected.piece.type, clicked.location)
-                else:
-                    print(clicked.location, "Selected:", selected.name)
-                    mv, action = can_move_here(selected, clicked, playing_field, moves)
-                    if mv:
-                        pygame.draw.rect(screen, background_colour,
-                                         (0, 0, xoffset, height))
-                        text = font2.render(
-                            selected.name + " " + selected.piece.name + " -> " + f"{rows[row]}{cols[col]}", True,
-                            (205, 205, 160, 50))
-                        moves.append((text, row, col))
-                        for i, (t, _, _) in enumerate(moves[::-1]):
-                            textRect = t.get_rect()
-                            textRect.left = 20
-                            textRect.top = 20 + i * y_square_size * 0.5
-                            screen.blit(t, textRect)
+                if not queening:
+                    if prev == clicked and selected is not None:
+                        print(clicked.location, "Selected:", selected.name)
+                    if selected is None:
+                        if clicked.piece is not None and clicked.piece.colour == ("w" if len(moves) % 2 == 0 else "b"):
+                            selected = clicked
+                            print("Selected:", selected.name, selected.piece.type, clicked.location)
+                    else:
+                        print(clicked.location, "Selected:", selected.name, selected.piece.name)
+                        mv, action = can_move_here(selected, clicked, playing_field, moves)
+                        if mv:
+                            pygame.draw.rect(screen, background_colour,
+                                             (0, 0, xoffset, height))
+                            text = font2.render(
+                                selected.name + " " + selected.piece.name + " -> " + f"{rows[row]}{cols[col]}", True,
+                                (205, 205, 160, 50))
+                            moves.append((text, row, col, moves[-1][1] if moves else 0, moves[-1][2] if moves else 0, selected.piece))
+                            for i, (t, _, _, _, _, _) in enumerate(moves[::-1]):
+                                textRect = t.get_rect()
+                                textRect.left = 20
+                                textRect.top = 20 + i * y_square_size * 0.5
+                                screen.blit(t, textRect)
 
-                        #print("row, col:", row, col)
-                        # where_can_move(selected, clicked, playing_field)
-                        print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
-                        if action not in ["sPawn", "dig"]:
-                            move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size,
-                                       playing_field,
-                                       clicked)
+                            #print("row, col:", row, col)
+                            # where_can_move(selected, clicked, playing_field)
+                            print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
+                            if action not in ["sPawn", "dig"]:
+                                move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size,
+                                           playing_field,
+                                           clicked)
 
-                        selected = None
+                            if (col + clicked.piece.movement_direction < 0) or (col + clicked.piece.movement_direction > 11)\
+                                or not playing_field[row][col + clicked.piece.movement_direction].passable:
+                                queening = True
+
+                            selected = None
+
 
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
                 if selected is not None:
@@ -424,6 +441,28 @@ if __name__ == '__main__':
             elif selected is not None and event.type == pygame.MOUSEMOTION:
                 # TODO convert pieces to sprites and only move sprite, then move selected piece with the mouse
                 ...
+            elif queening and event.type == pygame.KEYDOWN:
+                newpiece = ""
+                if event.key == pygame.K_p:
+                    newpiece = "pawn"
+                elif event.key == pygame.K_r:
+                    newpiece = "rook"
+                elif event.key == pygame.K_q:
+                    newpiece = "queen"
+                elif event.key == pygame.K_b:
+                    newpiece = "bishop"
+                elif event.key == pygame.K_k:
+                    newpiece = "knight"
+
+                if newpiece != "":
+                    queening = False
+                    clear_square(moves[-1][1], moves[-1][2], xoffset, yoffset, x_square_size, y_square_size, None, playing_field[moves[-1][1]][moves[-1][2]])
+                    playing_field[moves[-1][1]][moves[-1][2]].piece = Piece(moves[-1][5].colour, newpiece, moves[-1][5].movement_direction)
+                    draw_piece(moves[-1][5].colour, newpiece, xoffset, yoffset, x_square_size, y_square_size, moves[-1][1] - 1, moves[-1][2] - 1)
+
+
+
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
 
