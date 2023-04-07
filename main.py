@@ -105,7 +105,7 @@ def move_piece(tox, toy, selected, xoffset, yoffset, x_square_size, y_square_siz
 
 
 def can_move_here(origin, target, playing_field, moves, ):  # TODO
-    if target.piece is not None and target.piece.colour == origin.piece.colour and origin.piece.type != "king":
+    if target.piece is not None and target.piece.colour == origin.piece.colour and (origin.piece.type not in ["king", "bishop"]):
         return False, ""
     if not target.passable and origin.piece.type != "knight":
         return False, ""
@@ -190,8 +190,79 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
                                                              [(x + mvs, y - mvs) for mvs in range(1, 12)] +
                                                              [(x - mvs, y + mvs) for mvs in range(1, 12)] +
                                                              [(x - mvs, y - mvs) for mvs in range(1, 12)]):
-            return True, "shop"
-        ...
+            if target.piece is not None:
+                if target.piece.colour != piece.colour:
+                    return True, "shop"
+                else:
+                    return False, ""
+            else:
+                return True, "shop"
+
+        elif target.piece.colour == piece.colour and target.piece.type == piece.type:
+            a = (target.location[0] - origin.location[0])
+            b = (target.location[1] - origin.location[1])
+            if abs(a) == 3 and b == 0:
+                if a > 0 and playing_field[origin.location[0] + 1][origin.location[1]].piece is not None\
+                        and playing_field[origin.location[0] + 2][origin.location[1]].piece is not None\
+                        and playing_field[origin.location[0] + 1][origin.location[1]].piece.type == "pawn" \
+                        and playing_field[origin.location[0] + 2][origin.location[1]].piece.type == "pawn" \
+                        and playing_field[origin.location[0] + 1][origin.location[1]].piece.colour != piece.colour\
+                        and playing_field[origin.location[0] + 2][origin.location[1]].piece.colour != piece.colour:
+                    playing_field[origin.location[0] + 1][origin.location[1]].piece = None
+                    playing_field[origin.location[0] + 2][origin.location[1]].piece = None
+                    clear_square(origin.location[0] + 1, origin.location[1], xoffset, yoffset, x_square_size, y_square_size, ptype,
+                                 playing_field[origin.location[0] + 1][origin.location[1]])
+                    clear_square(origin.location[0] + 2, origin.location[1], xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 playing_field[origin.location[0] + 2][origin.location[1]])
+                    return True, "il vaticano"
+
+                elif playing_field[origin.location[0] - 1][origin.location[1]].piece is not None\
+                        and playing_field[origin.location[0] - 2][origin.location[1]].piece is not None\
+                        and playing_field[origin.location[0] - 1][origin.location[1]].piece.type == "pawn" \
+                        and playing_field[origin.location[0] - 2][origin.location[1]].piece.type == "pawn" \
+                        and playing_field[origin.location[0] - 1][origin.location[1]].piece.colour != piece.colour\
+                        and playing_field[origin.location[0] - 2][origin.location[1]].piece.colour != piece.colour:
+                    playing_field[origin.location[0] - 1][origin.location[1]].piece = None
+                    playing_field[origin.location[0] - 2][origin.location[1]].piece = None
+                    clear_square(origin.location[0] - 1, origin.location[1], xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 playing_field[origin.location[0] - 1][origin.location[1]])
+                    clear_square(origin.location[0] - 2, origin.location[1], xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 playing_field[origin.location[0] - 2][origin.location[1]])
+                    return True, "il vaticano"
+            elif a == 0 and abs(b) == 3:
+                if b < 0 and playing_field[origin.location[0]][origin.location[1] + 1].piece is not None\
+                        and playing_field[origin.location[0]][origin.location[1] + 2].piece is not None\
+                        and playing_field[origin.location[0]][origin.location[1] + 1].piece.type == "pawn" \
+                        and playing_field[origin.location[0]][origin.location[1] + 2].piece.type == "pawn" \
+                        and playing_field[origin.location[0]][origin.location[1] + 1].piece.colour != piece.colour\
+                        and playing_field[origin.location[0]][origin.location[1] + 2].piece.colour != piece.colour:
+                    playing_field[origin.location[0]][origin.location[1] + 1].piece = None
+                    playing_field[origin.location[0]][origin.location[1] + 2].piece = None
+                    clear_square(origin.location[0], origin.location[1] + 1, xoffset, yoffset, x_square_size, y_square_size, ptype,
+                                 playing_field[origin.location[0]][origin.location[1] + 1])
+                    clear_square(origin.location[0], origin.location[1] + 2, xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 playing_field[origin.location[0]][origin.location[1] + 2])
+                    return True, "il vaticano"
+
+                elif playing_field[origin.location[0]][origin.location[1] - 1].piece is not None\
+                        and playing_field[origin.location[0]][origin.location[1] - 2].piece is not None\
+                        and playing_field[origin.location[0]][origin.location[1] - 1].piece.type == "pawn" \
+                        and playing_field[origin.location[0]][origin.location[1] - 2].piece.type == "pawn" \
+                        and playing_field[origin.location[0]][origin.location[1] - 1].piece.colour != piece.colour\
+                        and playing_field[origin.location[0]][origin.location[1] - 2].piece.colour != piece.colour:
+                    playing_field[origin.location[0]][origin.location[1] - 1].piece = None
+                    playing_field[origin.location[0]][origin.location[1] - 2].piece = None
+                    clear_square(origin.location[0], origin.location[1] - 1, xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 playing_field[origin.location[0]][origin.location[1] - 1])
+                    clear_square(origin.location[0], origin.location[1] - 2, xoffset, yoffset, x_square_size,
+                                 y_square_size, ptype,
+                                 playing_field[origin.location[0]][origin.location[1] - 2])
+                    return True, "il vaticano"
     elif ptype == "rook":
         if not collision(origin, target, playing_field) and (
                 (x == target.location[0]) ^ (y == target.location[1])):  # to je xor
@@ -222,9 +293,13 @@ def can_move_here(origin, target, playing_field, moves, ):  # TODO
         ...
     elif ptype == "king":
         # print(x, target.location[0], y, target.location[1])
-        if abs(x - target.location[0]) < 2 and abs(y - target.location[1]) < 2:  # \
-            # and 1 < target.location[0] < 10 and 1 < target.location[1] < 10:
-            return True, "kink"
+        if abs(x - target.location[0]) < 2 and abs(y - target.location[1]) < 2:
+            if target.piece is not None:
+                if target.piece.colour != piece.colour:  # \
+                # and 1 < target.location[0] < 10 and 1 < target.location[1] < 10:
+                    return True, "kink"
+            else:
+                return True, "kink"
 
         elif piece.has_not_moved:
             print(target.location)
@@ -420,7 +495,7 @@ if __name__ == '__main__':
                             #print("row, col:", row, col)
                             # where_can_move(selected, clicked, playing_field)
                             print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
-                            if action not in ["sPawn", "dig"]:
+                            if action not in ["sPawn", "dig", "il vaticano"]:
                                 move_piece(row, col, selected, xoffset, yoffset, x_square_size, y_square_size,
                                            playing_field,
                                            clicked)
