@@ -6,7 +6,7 @@ width = 1280
 height = 800
 starts = "black"
 white_colour = (170, 110, 150)
-black_colour = (0, 0, 0)
+black_colour = (30, 30, 30)
 background_colour = (118, 150, 86)
 pieces = {}
 queening = False
@@ -81,34 +81,13 @@ def draw_dot(row, col):
     # pygame.display.update()
 
 
-def clear_square(i, j, piece, tile, override=False,
-                 override_color=background_colour):
-    print(i, j, "Cleared")
-    if not override:
-        if tile.passable or (1 < i < 10 and 1 < j < 10) or piece == "knight":
-            pygame.draw.rect(screen, black_colour if (i + j) % 2 == 1 else white_colour,
-                             (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
-            tile.passable = True
-        else:
-            pygame.draw.rect(screen, background_colour,
-                             (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
-    else:
-        pygame.draw.rect(screen, override_color,
-                         (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
-
-
-def move_piece(tox, toy, selected, clicked):
-    if clicked.piece is not None:
-        clear_square(clicked.location[0], clicked.location[1],
-                     selected.piece.type, selected)
+def move_piece(tox, toy, selected, ):
     selected.piece.has_not_moved = False
 
-    # clear_square(selected.location[0], selected.location[1],
-    #             selected.piece.type, selected)
     playing_field[tox][toy].piece = selected.piece
     playing_field[selected.location[0]][selected.location[1]].piece = None
     draw_tile(selected.location[0], selected.location[1])
-    draw_piece(tox, toy)
+    draw_tile(tox, toy)
     # draw_tile(tox, toy)
 
 
@@ -149,24 +128,21 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                 if moves[-1][1] == x - 1:
                     if commit_move:
                         playing_field[x - 1][y].piece = None
-                        clear_square(x - 1, y, ptype,
-                                     playing_field[x - 1][y])
+                        draw_tile(x - 1, y)
                     return True, "enpassant"
                 if moves[-1][1] == x + 1:
                     if commit_move:
                         playing_field[x + 1][y].piece = None
-                        clear_square(x + 1, y, ptype,
-                                     playing_field[x + 1][y])
+                        draw_tile(x + 1, y)
                     return True, "enpassant"
         if same_row and (piece.movement_direction * (y - 2) % 8 + (piece.movement_direction > 0)) == 5 and (
                 (((x + 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] > x)) or
                 (((x - 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] < x))) and (
                 target.piece is None) and not collision(origin, target, ) and \
-                not collision(origin, playing_field[moves[-1][-1], moves[-1][2]], ):
+                not collision(origin, playing_field[moves[-1][-1]][3]):
             if commit_move:
                 playing_field[moves[-1][1]][moves[-1][2]].piece = None
-                clear_square(moves[-1][1], moves[-1][2], ptype,
-                             playing_field[moves[-1][1]][moves[-1][2]])
+                draw_tile(moves[-1][1], moves[-1][2])
             return True, "omegapassant"
         if (y + piece.movement_direction < 0) or (y + piece.movement_direction > 11) or not playing_field[x][
             y + piece.movement_direction].passable:
@@ -179,7 +155,7 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                                 playing_field[x][y - piece.movement_direction * yoff].piece = Piece(ptype=newname,
                                                                                                     direction=piece.movement_direction * -1,
                                                                                                     colour=piece.colour)
-                                draw_piece(y - 1 - piece.movement_direction * yoff)
+                                draw_tile(x, y - 1 - piece.movement_direction * yoff)
                             return True, "sPawn"
                         else:
                             break
@@ -192,8 +168,7 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                      playing_field[x][y].piece is not None]) >= 3:
             if commit_move:
                 target.passable = False
-                clear_square(target.location[0], target.location[1], None,
-                             None, override=True)
+                draw_tile(target.location[0], target.location[1])
             return True, "dig"
 
         ...
@@ -239,10 +214,8 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                     if commit_move:
                         playing_field[origin.location[0] + 1][origin.location[1]].piece = None
                         playing_field[origin.location[0] + 2][origin.location[1]].piece = None
-                        clear_square(origin.location[0] + 1, origin.location[1], ptype,
-                                     playing_field[origin.location[0] + 1][origin.location[1]])
-                        clear_square(origin.location[0] + 2, origin.location[1], ptype,
-                                     playing_field[origin.location[0] + 2][origin.location[1]])
+                        draw_tile(origin.location[0] + 1, origin.location[1])
+                        draw_tile(origin.location[0] + 2, origin.location[1])
                     return True, "il vaticano"
 
                 elif playing_field[origin.location[0] - 1][origin.location[1]].piece is not None \
@@ -254,13 +227,11 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                     if commit_move:
                         playing_field[origin.location[0] - 1][origin.location[1]].piece = None
                         playing_field[origin.location[0] - 2][origin.location[1]].piece = None
-                        clear_square(origin.location[0] - 1, origin.location[1], ptype,
-                                     playing_field[origin.location[0] - 1][origin.location[1]])
-                        clear_square(origin.location[0] - 2, origin.location[1], ptype,
-                                     playing_field[origin.location[0] - 2][origin.location[1]])
+                        draw_tile(origin.location[0] - 1, origin.location[1])
+                        draw_tile(origin.location[0] - 2, origin.location[1])
                     return True, "il vaticano"
             elif a == 0 and abs(b) == 3:
-                if b < 0 and playing_field[origin.location[0]][origin.location[1] + 1].piece is not None \
+                if b > 0 and playing_field[origin.location[0]][origin.location[1] + 1].piece is not None \
                         and playing_field[origin.location[0]][origin.location[1] + 2].piece is not None \
                         and playing_field[origin.location[0]][origin.location[1] + 1].piece.type == "pawn" \
                         and playing_field[origin.location[0]][origin.location[1] + 2].piece.type == "pawn" \
@@ -269,10 +240,8 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                     if commit_move:
                         playing_field[origin.location[0]][origin.location[1] + 1].piece = None
                         playing_field[origin.location[0]][origin.location[1] + 2].piece = None
-                        clear_square(origin.location[0], origin.location[1] + 1, ptype,
-                                     playing_field[origin.location[0]][origin.location[1] + 1])
-                        clear_square(origin.location[0], origin.location[1] + 2, ptype,
-                                     playing_field[origin.location[0]][origin.location[1] + 2])
+                        draw_tile(origin.location[0], origin.location[1] + 1)
+                        draw_tile(origin.location[0], origin.location[1] + 2)
                     return True, "il vaticano"
 
                 elif playing_field[origin.location[0]][origin.location[1] - 1].piece is not None \
@@ -284,10 +253,8 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                     if commit_move:
                         playing_field[origin.location[0]][origin.location[1] - 1].piece = None
                         playing_field[origin.location[0]][origin.location[1] - 2].piece = None
-                        clear_square(origin.location[0], origin.location[1] - 1, ptype,
-                                     playing_field[origin.location[0]][origin.location[1] - 1])
-                        clear_square(origin.location[0], origin.location[1] - 2, ptype,
-                                     playing_field[origin.location[0]][origin.location[1] - 2])
+                        draw_tile(origin.location[0], origin.location[1] - 1)
+                        draw_tile(origin.location[0], origin.location[1] - 2)
                     return True, "il vaticano"
     elif ptype == "rook":
         if not collision(origin, target, ) and (
@@ -295,6 +262,7 @@ def can_move_here(origin, target, commit_move=True):  # TODO
             return True, "lethimcook"
         # elif 1 < piece.location[1] < 9 and target.location[0] == piece.location[0] and target.location[1]
         ...
+        # if two rooks of either color are on neighbouring fields, a plane crashes into both of them, destroying them.
     elif ptype == "queen":
         coll, coords = collision(origin, target, ret_coord=True)
         if not coll and (
@@ -313,12 +281,26 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                 if spot.piece.colour == origin.piece.colour:
                     if commit_move:
                         spot.piece = None
-                        clear_square(target.location[0] + d1, target.location[1] + d2, ptype,
-                                     spot)
+                        draw_tile(target.location[0] + d1, target.location[1] + d2)
                 return True, "teleports behind you"
         ...
     elif ptype == "king":
         # print(x, target.location[0], y, target.location[1])
+        a = origin.location[0] - target.location[0]
+        b = origin.location[1] - target.location[1]
+        if abs(a) == 1 and abs(b) == 1 and target.piece is None:
+            if playing_field[origin.location[0]][target.location[1]].piece is not None:
+                if commit_move:
+                    playing_field[origin.location[0]][target.location[1]].piece.colour = piece.colour
+                    draw_tile(origin.location[0], target.location[1])
+                return True, "wololo"
+            elif playing_field[origin.location[1]][target.location[0]].piece is not None:
+                if commit_move:
+                    playing_field[origin.location[1]][target.location[0]].piece.colour = piece.colour
+                    playing_field[origin.location[1]][target.location[0]].piece.movement_direction *= -1
+                    draw_tile(origin.location[1], target.location[0])
+                return True, "wololo"
+
         if abs(x - target.location[0]) < 2 and abs(y - target.location[1]) < 2:
             if target.piece is not None:
                 if target.piece.colour != piece.colour:  # \
@@ -328,17 +310,19 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                 return True, "kink"
 
         elif piece.has_not_moved:
-            #print(target.location)
+            # print(target.location)
             rownum = origin.location[1]
-            if target.location[0] == 4 and target.location[1] == origin.location[1] and playing_field[2][rownum].piece is not None and playing_field[2][
+            if target.location[0] == 4 and target.location[1] == origin.location[1] and playing_field[2][
+                rownum].piece is not None and playing_field[2][
                 rownum].piece.has_not_moved:
                 if commit_move:
-                    move_piece(5, rownum, playing_field[2][rownum], playing_field[5][rownum])
+                    move_piece(5, rownum, playing_field[2][rownum])
                 return True, "castling"
-            elif target.location[0] == 8 and target.location[1] == origin.location[1] and playing_field[9][rownum].piece is not None and playing_field[9][
+            elif target.location[0] == 8 and target.location[1] == origin.location[1] and playing_field[9][
+                rownum].piece is not None and playing_field[9][
                 rownum].piece.has_not_moved:
                 if commit_move:
-                    move_piece(7, rownum, playing_field[9][rownum], playing_field[7][rownum])
+                    move_piece(7, rownum, playing_field[9][rownum])
                 return True, "castling"
 
     return False, ""
@@ -393,7 +377,7 @@ def setup_playing_field(screen, ):
         for j in range(12):
             if 1 < i < 10 and 1 < j < 10:
                 if (i + j) % 2 == 1:
-                    pygame.draw.rect(screen, (0, 0, 0),
+                    pygame.draw.rect(screen, black_colour,
                                      (i * x_square_size + xoffset, j * y_square_size, x_square_size, y_square_size))
 
     # Draw letters
@@ -529,10 +513,8 @@ if __name__ == '__main__':
                             # where_can_move(selected, clicked, )
                             print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
                             if action not in ["sPawn", "dig", "il vaticano"]:
-                                move_piece(row, col, selected,
-                                           clicked)
-
-                            if clicked.piece.type in ["sPawn", "pawn"] and (
+                                move_piece(row, col, selected)
+                            if clicked.piece is not None and clicked.piece.type in ["sPawn", "pawn"] and (
                                     (col + clicked.piece.movement_direction < 0) or (
                                     col + clicked.piece.movement_direction > 11)
                                     or not playing_field[row][col + clicked.piece.movement_direction].passable):
@@ -545,13 +527,16 @@ if __name__ == '__main__':
                 if selected is not None:
                     prev = clicked
                     print("Deselecting", selected.name, selected.piece.name)
+
+                    clear_possible_moves(current_map)
                     # playing_field[selected.location[0]][selected.location[1]] = selected.piece
                     selected = None
             elif selected is not None and event.type == pygame.MOUSEMOTION:
                 # TODO convert pieces to sprites and only move sprite, then move selected piece with the mouse
                 ...
             elif queening and event.type == pygame.KEYDOWN:
-                #TODO actually show the possible pieces
+                # TODO actually show the possible pieces
+                # TODO pawn -> king promotion
                 newpiece = ""
                 if event.key == pygame.K_p:
                     newpiece = "pawn"
@@ -566,7 +551,7 @@ if __name__ == '__main__':
 
                 if newpiece != "":
                     queening = False
-                    clear_square(moves[-1][1], moves[-1][2], None, playing_field[moves[-1][1]][moves[-1][2]])
+                    draw_tile(moves[-1][1], moves[-1][2])
                     playing_field[moves[-1][1]][moves[-1][2]].piece = Piece(moves[-1][5].colour, newpiece,
                                                                             moves[-1][5].movement_direction)
                     draw_piece(moves[-1][1], moves[-1][2])
