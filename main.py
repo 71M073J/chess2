@@ -14,7 +14,7 @@ playing_field = None
 xoffset, yoffset = None, None
 x_square_size, y_square_size = None, None
 moves = []
-
+upgrade_pieces = ["pawn", "bishop", "knight", "rook", "queen", "king"]
 
 class Tile:
     def __init__(self, location, ttype="normal", passable=True):
@@ -24,7 +24,8 @@ class Tile:
         self.name = rows[location[0]] + cols[location[1]]
         self.location = location
         self.colour = "white" if ((location[0] + location[1]) % 2 == 1) else "black"
-
+    def __str__(self):
+        return f"Tile {self.name}:\nLoc:{self.location}, Passable: {self.passable}, Colour: {self.colour}\nPiece:{self.piece}"
 
 class Piece:
     def __init__(self, colour, ptype, direction):
@@ -33,7 +34,8 @@ class Piece:
         self.movement_direction = direction
         self.has_not_moved = True
         self.name = ("white " if colour == "w" else "black ") + self.type
-
+    def __str__(self):
+        return f"{self.name}"
 
 def get_pieces():
     for sets in ["b", "w"]:
@@ -370,6 +372,8 @@ def where_can_move(origin: Tile):
 
 def setup_playing_field(screen, ):
     # Fill the background with white*
+    global choices
+    choices = False
     screen.fill(background_colour)
     pygame.draw.rect(screen, white_colour,
                      (2 * x_square_size + xoffset, 2 * y_square_size, 8 * x_square_size, 8 * y_square_size))
@@ -445,6 +449,26 @@ def clear_possible_moves(map):
             if map[i][j][0]:
                 draw_tile(i, j)
 
+def draw_upgrade_choices(tile):
+    if tile.colour == "black":
+        c = black_colour
+        c = (c[0] + 50, c[1] + 50, c[2] + 50)
+    else:
+        c = white_colour
+        c = (c[0] - 50, c[1] - 50, c[2] - 50)
+    pygame.draw.rect(screen, c, ((row - 2.5) * x_square_size + xoffset, (col + tile.piece.movement_direction) * y_square_size + yoffset,
+                                 x_square_size * 6, y_square_size))
+    for ind, piece in enumerate(upgrade_pieces):
+        img = pieces[tile.piece.colour][piece]
+        rect = img.get_rect()
+        rect.center = (xoffset + (row + 0.5 + ind - 2.5) * x_square_size, yoffset + (col + 0.5 + tile.piece.movement_direction) * y_square_size)
+        screen.blit(img, rect)
+
+def clear_upgrade_choices(tile):
+    row, col = tile.location
+    for i in range(7):
+        draw_tile(row + i - 3, col + tile.piece.movement_direction)
+        #print(playing_field[row + i - 3][col + tile.piece.movement_direction])
 
 if __name__ == '__main__':
     pygame.init()
@@ -502,7 +526,7 @@ if __name__ == '__main__':
                                 selected.name + " " + selected.piece.name + " -> " + f"{rows[row]}{cols[col]}", True,
                                 (205, 205, 160, 50))
                             moves.append((text, row, col, moves[-1][1] if moves else 0, moves[-1][2] if moves else 0,
-                                          selected.piece))
+                                          clicked))
                             for i, (t, _, _, _, _, _) in enumerate(moves[::-1]):
                                 textRect = t.get_rect()
                                 textRect.left = 20
@@ -519,9 +543,27 @@ if __name__ == '__main__':
                                     col + clicked.piece.movement_direction > 11)
                                     or not playing_field[row][col + clicked.piece.movement_direction].passable):
                                 queening = True
+                                draw_upgrade_choices(clicked)
 
                             selected = None
+                else:
+                    #if queening
+                    last = moves[-1][-1]
+                    row = (xp - xoffset + x_square_size // 2) // x_square_size - last.location[0] + 2
+                    col = (yp - yoffset) // y_square_size
+                    print(row, col, last)
+                    if last.location[1] == (col - last.piece.movement_direction) and 0 <= row <= 5:
+                        queening = False
+                        last.piece = Piece(last.piece.colour, upgrade_pieces[row], last.piece.movement_direction)
+                        draw_tile(moves[-1][1], moves[-1][2])
+                        clear_upgrade_choices(last)
 
+
+                    #queening = False
+                    #draw_tile(moves[-1][1], moves[-1][2])
+                    #playing_field[moves[-1][1]][moves[-1][2]].piece = Piece(moves[-1][5].colour, newpiece,
+                    #                                                        moves[-1][5].movement_direction)
+                    #draw_piece(moves[-1][1], moves[-1][2])
 
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
                 if selected is not None:
@@ -534,27 +576,7 @@ if __name__ == '__main__':
             elif selected is not None and event.type == pygame.MOUSEMOTION:
                 # TODO convert pieces to sprites and only move sprite, then move selected piece with the mouse
                 ...
-            elif queening and event.type == pygame.KEYDOWN:
-                # TODO actually show the possible pieces
-                # TODO pawn -> king promotion
-                newpiece = ""
-                if event.key == pygame.K_p:
-                    newpiece = "pawn"
-                elif event.key == pygame.K_r:
-                    newpiece = "rook"
-                elif event.key == pygame.K_q:
-                    newpiece = "queen"
-                elif event.key == pygame.K_b:
-                    newpiece = "bishop"
-                elif event.key == pygame.K_k:
-                    newpiece = "knight"
 
-                if newpiece != "":
-                    queening = False
-                    draw_tile(moves[-1][1], moves[-1][2])
-                    playing_field[moves[-1][1]][moves[-1][2]].piece = Piece(moves[-1][5].colour, newpiece,
-                                                                            moves[-1][5].movement_direction)
-                    draw_piece(moves[-1][1], moves[-1][2])
 
 
 
