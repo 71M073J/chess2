@@ -16,6 +16,7 @@ x_square_size, y_square_size = None, None
 moves = []
 upgrade_pieces = ["pawn", "bishop", "knight", "rook", "queen", "king"]
 opponent = {"b": "w", "w": "b"}
+kingtiles = {}
 
 class Tile:
     def __init__(self, location, ttype="normal", passable=True):
@@ -25,8 +26,10 @@ class Tile:
         self.name = rows[location[0]] + cols[location[1]]
         self.location = location
         self.colour = "white" if ((location[0] + location[1]) % 2 == 1) else "black"
+
     def __str__(self):
         return f"Tile {self.name}:\nLoc:{self.location}, Passable: {self.passable}, Colour: {self.colour}\nPiece:{self.piece}"
+
 
 class Piece:
     def __init__(self, colour, ptype, direction):
@@ -35,8 +38,10 @@ class Piece:
         self.movement_direction = direction
         self.has_not_moved = True
         self.name = ("white " if colour == "w" else "black ") + self.type
+
     def __str__(self):
         return f"{self.name}"
+
 
 def get_pieces():
     for sets in ["b", "w"]:
@@ -104,13 +109,18 @@ def draw_tile(row, col):
     ...
 
 
-def can_move_here(origin, target, commit_move=True):  # TODO
-    capture = False
+def can_move_here(origin, target, commit_move=True, check_check=False):
+
+    if not check_check and is_tile_attacked_by(kingtiles[origin.piece.colour], opponent[origin.piece.colour]):#a je šah
+        print(f"Šah za {cmap[origin.piece.colour]}") #TODO da lahko tudi s piecem blokira šah
+        #if origin.piece.type != "king":
+        #    return False, ""
+
+
     if target.piece is not None and target.piece.colour == origin.piece.colour and (
             origin.piece.type not in ["king", "bishop"]):
         return False, ""
-    if target.piece is not None:
-        capture = True
+
     if not target.passable and origin.piece.type != "knight":
         return False, ""
     piece = origin.piece
@@ -294,28 +304,40 @@ def can_move_here(origin, target, commit_move=True):  # TODO
         # print(x, target.location[0], y, target.location[1])
         a = origin.location[0] - target.location[0]
         b = origin.location[1] - target.location[1]
-        if abs(a) == 1 and abs(b) == 1 and target.piece is None:
-            if playing_field[origin.location[0]][target.location[1]].piece is not None:
+        if abs(a) == 1 and abs(b) == 1:
+            if is_tile_attacked_by(target, opponent[piece.colour]):
+                return False, ""
+            if target.piece is None and playing_field[origin.location[0]][target.location[1]].piece is not None:
                 if commit_move:
                     playing_field[origin.location[0]][target.location[1]].piece.colour = piece.colour
                     draw_tile(origin.location[0], target.location[1])
+                    kingtiles[piece.colour] = target
                 return True, "wololo"
-            elif playing_field[origin.location[1]][target.location[0]].piece is not None:
+            elif target.piece is None and playing_field[origin.location[1]][target.location[0]].piece is not None:
                 if commit_move:
                     playing_field[origin.location[1]][target.location[0]].piece.colour = piece.colour
                     playing_field[origin.location[1]][target.location[0]].piece.movement_direction *= -1
                     draw_tile(origin.location[1], target.location[0])
+                    kingtiles[piece.colour] = target
                 return True, "wololo"
 
         if abs(x - target.location[0]) < 2 and abs(y - target.location[1]) < 2:
+            if is_tile_attacked_by(target, opponent[piece.colour]):
+                return False, ""
             if target.piece is not None:
                 if target.piece.colour != piece.colour:  # \
+
+                    kingtiles[piece.colour] = target
                     # and 1 < target.location[0] < 10 and 1 < target.location[1] < 10:
                     return True, "kink"
             else:
+
+                kingtiles[piece.colour] = target
                 return True, "kink"
 
         elif piece.has_not_moved:
+            if is_tile_attacked_by(target, opponent[piece.colour]):
+                return False, ""
             # print(target.location)
             rownum = origin.location[1]
             if target.location[0] == 4 and target.location[1] == origin.location[1] and playing_field[2][
@@ -323,11 +345,13 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                 rownum].piece.has_not_moved:
                 if commit_move:
                     move_piece(5, rownum, playing_field[2][rownum])
+                    kingtiles[piece.colour] = target
                 return True, "castling"
             elif target.location[0] == 8 and target.location[1] == origin.location[1] and playing_field[9][
                 rownum].piece is not None and playing_field[9][
                 rownum].piece.has_not_moved:
                 if commit_move:
+                    kingtiles[piece.colour] = target
                     move_piece(7, rownum, playing_field[9][rownum])
                 return True, "castling"
 
@@ -378,6 +402,8 @@ def where_can_move(origin: Tile, names=False):
 
 def setup_playing_field(screen, ):
     # Fill the background with white*
+    global kingtiles
+    kingtiles = {}
     global choices
     choices = False
     screen.fill(background_colour)
@@ -433,11 +459,13 @@ def setup_playing_field(screen, ):
             elif piece == "king":
                 i = 5
                 playing_field[i + 1][j + 1].piece = Piece(colour, piece, -factor, )
+                kingtiles[colour] = playing_field[i+1][j+1]
                 draw_piece(i + 1, j + 1)
 
     # Flip the display
     pygame.display.flip()
     return pieces, cmap, None, None, 0
+
 
 def mapsum(a, b):
     c = [[False for _ in range(12)] for _ in range(12)]
@@ -452,25 +480,28 @@ def mapsum(a, b):
             if a[i][j] or b[i][j]:
                 c[i][j] = True
     return c
+
+
 def attacked_tiles(color):
     fmap = [[False for _ in range(12)] for _ in range(12)]
     for i in range(12):
         for j in range(12):
             fmap[i][j] = is_tile_attacked_by(playing_field[i][j], color)
-            #tile = playing_field[i][j]
-            #if tile.piece is not None and tile.piece.colour == color:
+            # tile = playing_field[i][j]
+            # if tile.piece is not None and tile.piece.colour == color:
             #    map = where_can_move(tile)
             #    fmap = mapsum(map, fmap)
     return fmap
 
-def is_tile_attacked_by(tile, colour):
-    x, y = tile.location
-    #pawn 4 tiles
 
-    diags = [(x + mvs, y + mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11] +\
-        [(x + mvs, y - mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11] +\
-        [(x - mvs, y + mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11] +\
-        [(x - mvs, y - mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11]
+def is_tile_attacked_by(tile, colour):
+    # TODO check new moves as well
+    x, y = tile.location
+
+    diags = [(x + mvs, y + mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11] + \
+            [(x + mvs, y - mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11] + \
+            [(x - mvs, y + mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11] + \
+            [(x - mvs, y - mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11]
     for px, py in diags:
         p = playing_field[px][py].piece
         if p is not None and (p.colour == colour) and p.type in ["bishop", "queen"]:
@@ -486,12 +517,12 @@ def is_tile_attacked_by(tile, colour):
         if p is not None and (p.colour == colour) and p.type in ["rook", "queen"]:
             if not collision(tile, playing_field[x][py]):
                 return True
-    for dx, dy in [(1,2), (1,-2), (-1,2), (-1,-2), (2,1), (2,-1), (-2,1), (-2,-1)]:
+    for dx, dy in [(1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1)]:
         if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
             p = playing_field[x + dx][y + dy].piece
             if p is not None and (p.colour == colour) and p.type == "knight":
                 return True
-    for dx, dy in [(1,1),(1,-1),(-1,1),(-1,-1)]:
+    for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
         if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
             p = playing_field[x + dx][y + dy].piece
             if p is not None and (p.colour == colour):
@@ -500,17 +531,19 @@ def is_tile_attacked_by(tile, colour):
                         return True
                 elif p.type == "king":
                     return True
-    for dx, dy in [(1, 0), (0, -1), (-1, 0), (0, -1)]:
+    for dx, dy in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
         if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
             p = playing_field[x + dx][y + dy].piece
             if p is not None and (p.colour == colour):
                 if p.type == "king":
                     return True
+
     return False
+
 
 def show_possible_moves(tile):
     map = where_can_move(tile)
-    map = attacked_tiles(opponent[tile.piece.colour])
+    #map = attacked_tiles(opponent[tile.piece.colour])
     for i in range(12):
         for j in range(12):
             if map[i][j]:
@@ -524,6 +557,7 @@ def clear_possible_moves(map):
             if map[i][j]:
                 draw_tile(i, j)
 
+
 def draw_upgrade_choices(tile):
     if tile.colour == "black":
         c = black_colour
@@ -531,19 +565,23 @@ def draw_upgrade_choices(tile):
     else:
         c = white_colour
         c = (c[0] - 50, c[1] - 50, c[2] - 50)
-    pygame.draw.rect(screen, c, ((row - 2.5) * x_square_size + xoffset, (col + tile.piece.movement_direction) * y_square_size + yoffset,
-                                 x_square_size * 6, y_square_size))
+    pygame.draw.rect(screen, c, (
+    (row - 2.5) * x_square_size + xoffset, (col + tile.piece.movement_direction) * y_square_size + yoffset,
+    x_square_size * 6, y_square_size))
     for ind, piece in enumerate(upgrade_pieces):
         img = pieces[tile.piece.colour][piece]
         rect = img.get_rect()
-        rect.center = (xoffset + (row + 0.5 + ind - 2.5) * x_square_size, yoffset + (col + 0.5 + tile.piece.movement_direction) * y_square_size)
+        rect.center = (xoffset + (row + 0.5 + ind - 2.5) * x_square_size,
+                       yoffset + (col + 0.5 + tile.piece.movement_direction) * y_square_size)
         screen.blit(img, rect)
+
 
 def clear_upgrade_choices(tile):
     row, col = tile.location
     for i in range(7):
         draw_tile(row + i - 3, col + tile.piece.movement_direction)
-        #print(playing_field[row + i - 3][col + tile.piece.movement_direction])
+        # print(playing_field[row + i - 3][col + tile.piece.movement_direction])
+
 
 if __name__ == '__main__':
     pygame.init()
@@ -622,7 +660,7 @@ if __name__ == '__main__':
 
                             selected = None
                 else:
-                    #if queening
+                    # if queening
                     last = moves[-1][-1]
                     row = (xp - xoffset + x_square_size // 2) // x_square_size - last.location[0] + 2
                     col = (yp - yoffset) // y_square_size
@@ -633,12 +671,11 @@ if __name__ == '__main__':
                         draw_tile(moves[-1][1], moves[-1][2])
                         clear_upgrade_choices(last)
 
-
-                    #queening = False
-                    #draw_tile(moves[-1][1], moves[-1][2])
-                    #playing_field[moves[-1][1]][moves[-1][2]].piece = Piece(moves[-1][5].colour, newpiece,
+                    # queening = False
+                    # draw_tile(moves[-1][1], moves[-1][2])
+                    # playing_field[moves[-1][1]][moves[-1][2]].piece = Piece(moves[-1][5].colour, newpiece,
                     #                                                        moves[-1][5].movement_direction)
-                    #draw_piece(moves[-1][1], moves[-1][2])
+                    # draw_piece(moves[-1][1], moves[-1][2])
 
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
                 if selected is not None:
