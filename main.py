@@ -15,6 +15,7 @@ xoffset, yoffset = None, None
 x_square_size, y_square_size = None, None
 moves = []
 upgrade_pieces = ["pawn", "bishop", "knight", "rook", "queen", "king"]
+opponent = {"b": "w", "w": "b"}
 
 class Tile:
     def __init__(self, location, ttype="normal", passable=True):
@@ -104,9 +105,12 @@ def draw_tile(row, col):
 
 
 def can_move_here(origin, target, commit_move=True):  # TODO
+    capture = False
     if target.piece is not None and target.piece.colour == origin.piece.colour and (
             origin.piece.type not in ["king", "bishop"]):
         return False, ""
+    if target.piece is not None:
+        capture = True
     if not target.passable and origin.piece.type != "knight":
         return False, ""
     piece = origin.piece
@@ -360,13 +364,15 @@ def collision(source, stop, ret_coord=False):
         return False, (x1, y1)
 
 
-def where_can_move(origin: Tile):
+def where_can_move(origin: Tile, names=False):
     defmap = [[False for x in range(12)] for y in range(12)]
 
     for i in range(12):
         for j in range(12):
-            defmap[i][j] = can_move_here(origin, playing_field[i][j], commit_move=False)
-
+            if not names:
+                defmap[i][j] = can_move_here(origin, playing_field[i][j], commit_move=False)[0]
+            else:
+                defmap[i][j] = can_move_here(origin, playing_field[i][j], commit_move=False)
     return defmap
 
 
@@ -433,12 +439,36 @@ def setup_playing_field(screen, ):
     pygame.display.flip()
     return pieces, cmap, None, None, 0
 
+def mapsum(a, b):
+    c = [[False for _ in range(12)] for _ in range(12)]
+    if (not a) and bool(b):
+        return b
+    elif bool(a) and not b:
+        return a
+    elif not a and not b:
+        return c
+    for i in range(12):
+        for j in range(12):
+            if a[i][j] or b[i][j]:
+                c[i][j] = True
+    return c
+def attacked_tiles(color):
+    fmap = None
+    for i in range(12):
+        for j in range(12):
+            tile = playing_field[i][j]
+            if tile.piece is not None and tile.piece.colour == color:
+                map = where_can_move(tile)
+                fmap = mapsum(map, fmap)
+    return fmap
+
 
 def show_possible_moves(tile):
     map = where_can_move(tile)
+    #map = attacked_tiles(opponent[tile.piece.colour])
     for i in range(12):
         for j in range(12):
-            if map[i][j][0]:
+            if map[i][j]:
                 draw_dot(i, j)
     return map
 
@@ -446,7 +476,7 @@ def show_possible_moves(tile):
 def clear_possible_moves(map):
     for i in range(12):
         for j in range(12):
-            if map[i][j][0]:
+            if map[i][j]:
                 draw_tile(i, j)
 
 def draw_upgrade_choices(tile):
