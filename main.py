@@ -289,7 +289,7 @@ def can_move_here(origin, target, commit_move=True):  # TODO
                         spot.piece = None
                         draw_tile(target.location[0] + d1, target.location[1] + d2)
                 return True, "teleports behind you"
-        ...
+
     elif ptype == "king":
         # print(x, target.location[0], y, target.location[1])
         a = origin.location[0] - target.location[0]
@@ -453,19 +453,64 @@ def mapsum(a, b):
                 c[i][j] = True
     return c
 def attacked_tiles(color):
-    fmap = None
+    fmap = [[False for _ in range(12)] for _ in range(12)]
     for i in range(12):
         for j in range(12):
-            tile = playing_field[i][j]
-            if tile.piece is not None and tile.piece.colour == color:
-                map = where_can_move(tile)
-                fmap = mapsum(map, fmap)
+            fmap[i][j] = is_tile_attacked_by(playing_field[i][j], color)
+            #tile = playing_field[i][j]
+            #if tile.piece is not None and tile.piece.colour == color:
+            #    map = where_can_move(tile)
+            #    fmap = mapsum(map, fmap)
     return fmap
 
+def is_tile_attacked_by(tile, colour):
+    x, y = tile.location
+    #pawn 4 tiles
+
+    diags = [(x + mvs, y + mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11] +\
+        [(x + mvs, y - mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11] +\
+        [(x - mvs, y + mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11] +\
+        [(x - mvs, y - mvs) for mvs in range(12) if 0 <= x + mvs <= 11 and 0 <= y + mvs <= 11]
+    for px, py in diags:
+        p = playing_field[px][py].piece
+        if p is not None and (p.colour == colour) and p.type in ["bishop", "queen"]:
+            if not collision(tile, playing_field[px][py]):
+                return True
+    for px in range(12):
+        p = playing_field[px][y].piece
+        if p is not None and (p.colour == colour) and p.type in ["rook", "queen"]:
+            if not collision(tile, playing_field[px][y]):
+                return True
+    for py in range(12):
+        p = playing_field[x][py].piece
+        if p is not None and (p.colour == colour) and p.type in ["rook", "queen"]:
+            if not collision(tile, playing_field[x][py]):
+                return True
+    for dx, dy in [(1,2), (1,-2), (-1,2), (-1,-2), (2,1), (2,-1), (-2,1), (-2,-1)]:
+        if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+            p = playing_field[x + dx][y + dy].piece
+            if p is not None and (p.colour == colour) and p.type == "knight":
+                return True
+    for dx, dy in [(1,1),(1,-1),(-1,1),(-1,-1)]:
+        if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+            p = playing_field[x + dx][y + dy].piece
+            if p is not None and (p.colour == colour):
+                if p.type in ["pawn", "sPawn"]:
+                    if dy == -p.movement_direction:
+                        return True
+                elif p.type == "king":
+                    return True
+    for dx, dy in [(1, 0), (0, -1), (-1, 0), (0, -1)]:
+        if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+            p = playing_field[x + dx][y + dy].piece
+            if p is not None and (p.colour == colour):
+                if p.type == "king":
+                    return True
+    return False
 
 def show_possible_moves(tile):
     map = where_can_move(tile)
-    #map = attacked_tiles(opponent[tile.piece.colour])
+    map = attacked_tiles(opponent[tile.piece.colour])
     for i in range(12):
         for j in range(12):
             if map[i][j]:
