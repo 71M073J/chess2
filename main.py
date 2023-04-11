@@ -155,7 +155,7 @@ def can_move_here(origin, target, commit_move=True, check_check=False):
                 (((x + 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] > x)) or
                 (((x - 2, y + piece.movement_direction * 2) == target.location) and (moves[-1][1] < x))) and (
                 target.piece is None) and not collision(origin, target, ) and \
-                not collision(origin, playing_field[moves[-1][-1]][3]):
+                not collision(origin, moves[-1][-1]):
             if commit_move:
                 playing_field[moves[-1][1]][moves[-1][2]].piece = None
                 draw_tile(moves[-1][1], moves[-1][2])
