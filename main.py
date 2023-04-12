@@ -119,25 +119,30 @@ def redraw_board():
 
 def can_move_here(origin, target, commit_move=True, check_check=False):
     global playing_field
+    global kingtiles
     if origin.location == target.location:
         return False, ""
     if not check_check:
         if is_tile_attacked_by(kingtiles[origin.piece.colour], opponent[origin.piece.colour]):  # a je šah
             board = copy.deepcopy(playing_field)
+            kingt = copy.deepcopy(kingtiles)
             # commit move je samo če je treba še kakšen drug piece premaknt, tkoda si vedno shrani prejšnji board, da ga lahko restoraš
             ifm, mov = can_move_here(origin, target, commit_move=commit_move, check_check=True)
             if not ifm:
                 playing_field = board
+                kingtiles = kingt
                 redraw_board()
                 return ifm, mov
             move_piece(target.location[0], target.location[1], origin)
             check = is_tile_attacked_by(kingtiles[target.piece.colour], opponent[target.piece.colour])
-            if ifm and not check:
+            if not check:
                 playing_field = board
+                kingtiles = kingt
                 redraw_board()
                 return ifm, mov  # TODO ZA pravilno izpisovanje move imen eventually
-            elif check:
+            else:
                 playing_field = board
+                kingtiles = kingt
                 redraw_board()
                 return False, ""
 
