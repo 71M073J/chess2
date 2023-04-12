@@ -1,4 +1,5 @@
 import pygame
+import copy
 
 rows = ["-B", "-A"] + ["A", "B", "C", "D", "E", "F", "G", "H"] + ["-H", "-G"]
 cols = ["10", "9"] + [str(x + 1) for x in range(8)][::-1] + ["-1", "-2"]
@@ -17,6 +18,7 @@ moves = []
 upgrade_pieces = ["pawn", "bishop", "knight", "rook", "queen", "king"]
 opponent = {"b": "w", "w": "b"}
 kingtiles = {}
+
 
 class Tile:
     def __init__(self, location, ttype="normal", passable=True):
@@ -109,12 +111,35 @@ def draw_tile(row, col):
     ...
 
 
-def can_move_here(origin, target, commit_move=True, check_check=False):
+def redraw_board():
+    for i in range(12):
+        for j in range(12):
+            draw_tile(i, j)
 
-    if not check_check and is_tile_attacked_by(kingtiles[origin.piece.colour], opponent[origin.piece.colour]):#a je šah
-        print(f"Šah za {cmap[origin.piece.colour]}") #TODO da lahko tudi s piecem blokira šah
-        #if origin.piece.type != "king":
-        #    return False, ""
+
+def can_move_here(origin, target, commit_move=True, check_check=False):
+    global playing_field
+    if origin.location == target.location:
+        return False, ""
+    if not check_check:
+        if is_tile_attacked_by(kingtiles[origin.piece.colour], opponent[origin.piece.colour]):  # a je šah
+            board = copy.deepcopy(playing_field)
+            # commit move je samo če je treba še kakšen drug piece premaknt, tkoda si vedno shrani prejšnji board, da ga lahko restoraš
+            ifm, mov = can_move_here(origin, target, commit_move=commit_move, check_check=True)
+            if not ifm:
+                playing_field = board
+                redraw_board()
+                return ifm, mov
+            move_piece(target.location[0], target.location[1], origin)
+            check = is_tile_attacked_by(kingtiles[target.piece.colour], opponent[target.piece.colour])
+            if ifm and not check:
+                playing_field = board
+                redraw_board()
+                return ifm, mov  # TODO ZA pravilno izpisovanje move imen eventually
+            elif check:
+                playing_field = board
+                redraw_board()
+                return False, ""
 
 
     if target.piece is not None and target.piece.colour == origin.piece.colour and (
@@ -390,7 +415,7 @@ def collision(source, stop, ret_coord=False):
 
 def where_can_move(origin: Tile, names=False):
     defmap = [[False for x in range(12)] for y in range(12)]
-
+    # TODO do this smart not just for every tile smg
     for i in range(12):
         for j in range(12):
             if not names:
@@ -459,7 +484,7 @@ def setup_playing_field(screen, ):
             elif piece == "king":
                 i = 5
                 playing_field[i + 1][j + 1].piece = Piece(colour, piece, -factor, )
-                kingtiles[colour] = playing_field[i+1][j+1]
+                kingtiles[colour] = playing_field[i + 1][j + 1]
                 draw_piece(i + 1, j + 1)
 
     # Flip the display
@@ -543,7 +568,7 @@ def is_tile_attacked_by(tile, colour):
 
 def show_possible_moves(tile):
     map = where_can_move(tile)
-    #map = attacked_tiles(opponent[tile.piece.colour])
+    # map = attacked_tiles(opponent[tile.piece.colour])
     for i in range(12):
         for j in range(12):
             if map[i][j]:
@@ -566,8 +591,8 @@ def draw_upgrade_choices(tile):
         c = white_colour
         c = (c[0] - 50, c[1] - 50, c[2] - 50)
     pygame.draw.rect(screen, c, (
-    (row - 2.5) * x_square_size + xoffset, (col + tile.piece.movement_direction) * y_square_size + yoffset,
-    x_square_size * 6, y_square_size))
+        (row - 2.5) * x_square_size + xoffset, (col + tile.piece.movement_direction) * y_square_size + yoffset,
+        x_square_size * 6, y_square_size))
     for ind, piece in enumerate(upgrade_pieces):
         img = pieces[tile.piece.colour][piece]
         rect = img.get_rect()
@@ -586,8 +611,6 @@ def clear_upgrade_choices(tile):
 if __name__ == '__main__':
     pygame.init()
 
-    font = pygame.font.Font('freesansbold.ttf', 22)
-    font2 = pygame.font.Font('freesansbold.ttf', 18)
     # Set up the drawing window
     screen = pygame.display.set_mode([width, height])
 
@@ -598,6 +621,9 @@ if __name__ == '__main__':
     yoffset = 0
     x_square_size = minv // 12
     y_square_size = minv // 12
+    print(y_square_size)
+    font = pygame.font.Font('freesansbold.ttf', y_square_size//3)
+    font2 = pygame.font.Font('freesansbold.ttf', y_square_size//4)
 
     current_map = [[(False,) for _ in range(12)] for _ in range(12)]
     pieces, cmap, selected, prev, clicked = setup_playing_field(screen, )
@@ -620,15 +646,19 @@ if __name__ == '__main__':
                 prev = clicked
                 clicked = playing_field[row][col]
                 if not queening:
-                    if prev == clicked and selected is not None:
-                        print(clicked.location, "Selected:", selected.name)
                     if selected is None:
-                        if clicked.piece is not None and clicked.piece.colour == ("w" if len(moves) % 2 == 0 else "b"):
-                            selected = clicked
-                            print("Selected:", selected.name, selected.piece.type, clicked.location)
-                            current_map = show_possible_moves(clicked)
+                        if clicked.piece is not None:
+                            if (clicked.piece.colour == ("w" if len(moves) % 2 == 0 else "b")):
+                                selected = clicked
+                                print("Selected:", selected.name, selected.piece.type, clicked.location)
+                                current_map = show_possible_moves(clicked)
+
                     else:
-                        print(clicked.location, "Selected:", selected.name, selected.piece.name)
+                        if clicked.piece is not None and (clicked.piece.colour == ("w" if len(moves) % 2 == 0 else "b")):
+                            clear_possible_moves(current_map)
+                            selected = clicked
+                            current_map = show_possible_moves(clicked)
+                            print(clicked.location, "Selected:", selected.name, selected.piece.name)
                         mv, action = can_move_here(selected, clicked)
                         if mv:
                             clear_possible_moves(current_map)
@@ -649,7 +679,7 @@ if __name__ == '__main__':
                             # print("row, col:", row, col)
                             # where_can_move(selected, clicked, )
                             print(selected.name, selected.piece.name, "->", f"{rows[row]}{cols[col]}")
-                            if action not in ["sPawn", "dig", "il vaticano"]:
+                            if action not in ["sPawn", "dig", "il vaticano", "override"]:
                                 move_piece(row, col, selected)
                             if clicked.piece is not None and clicked.piece.type in ["sPawn", "pawn"] and (
                                     (col + clicked.piece.movement_direction < 0) or (
