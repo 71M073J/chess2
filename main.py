@@ -533,16 +533,22 @@ def is_tile_attacked_by(tile, colour):
             [(x - mvs, y + mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11] + \
             [(x - mvs, y - mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11]
     for px, py in diags:
+        if (px, py) == tile.location:
+            continue
         p = playing_field[px][py].piece
         if p is not None and (p.colour == colour) and p.type in ["bishop", "queen"]:
             if not collision(tile, playing_field[px][py]):
                 return True
     for px in range(12):
+        if (px, y) == tile.location:
+            continue
         p = playing_field[px][y].piece
         if p is not None and (p.colour == colour) and p.type in ["rook", "queen"]:
             if not collision(tile, playing_field[px][y]):
                 return True
     for py in range(12):
+        if (x, py) == tile.location:
+            continue
         p = playing_field[x][py].piece
         if p is not None and (p.colour == colour) and p.type in ["rook", "queen"]:
             if not collision(tile, playing_field[x][py]):
