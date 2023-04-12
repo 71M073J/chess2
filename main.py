@@ -159,7 +159,7 @@ def can_move_here(origin, target, commit_move=True, check_check=False):
         same_row = (moves[-1][2] == y) if moves else False
         if (((x, y + piece.movement_direction) == target.location) or
             ((x, y + (piece.movement_direction * 2)) == target.location and piece.has_not_moved)) \
-                and target.piece is None:
+                and target.piece is None and not collision(origin, target, ):
             return True, "moveup"
         if (((x + 1, y + piece.movement_direction) == target.location) or
                 ((x - 1, y + piece.movement_direction) == target.location)):
