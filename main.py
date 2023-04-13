@@ -159,7 +159,6 @@ def can_move_here(origin, target, commit_move=True, check_check=False):
     # print(x, y, target.location)
     if ptype == "pawn" or ptype == "sPawn":
         # TODO en passant is forced
-        # TODO en passant actual condition kekw
         # TODO return also move name, if applicable (omega passant...)
         same_row = (moves[-1][2] == y) if moves else False
         if (((x, y + piece.movement_direction) == target.location) or
@@ -418,15 +417,74 @@ def collision(source, stop, ret_coord=False):
         return False, (x1, y1)
 
 
-def where_can_move(origin: Tile, names=False):
+def where_can_move(tile: Tile, names=False):
     defmap = [[False for x in range(12)] for y in range(12)]
-    # TODO do this smart not just for every tile smg
-    for i in range(12):
-        for j in range(12):
+    x, y = tile.location
+    if tile.piece.type in ["bishop", "queen"]:
+        diags = [(x + mvs, y + mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y + mvs) <= 11] + \
+                [(x + mvs, y - mvs) for mvs in range(12) if 0 <= (x + mvs) <= 11 and 0 <= (y - mvs) <= 11] + \
+                [(x - mvs, y + mvs) for mvs in range(12) if 0 <= (x - mvs) <= 11 and 0 <= (y + mvs) <= 11] + \
+                [(x - mvs, y - mvs) for mvs in range(12) if 0 <= (x - mvs) <= 11 and 0 <= (y - mvs) <= 11]
+        for px, py in diags:
+            #if not collision(tile, playing_field[px][py]):
             if not names:
-                defmap[i][j] = can_move_here(origin, playing_field[i][j], commit_move=False)[0]
+                defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)[0]
             else:
-                defmap[i][j] = can_move_here(origin, playing_field[i][j], commit_move=False)
+                defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)
+    if tile.piece.type in ["rook", "queen"]:
+        for px in range(12):
+            if (px, y) == tile.location:
+                continue
+            #if not collision(tile, playing_field[px][y]):
+            if not names:
+                defmap[px][y] = can_move_here(tile, playing_field[px][y], commit_move=False)[0]
+            else:
+                defmap[px][y] = can_move_here(tile, playing_field[px][y], commit_move=False)
+        for py in range(12):
+            if (x, py) == tile.location:
+                continue
+            #if not collision(tile, playing_field[x][py]):
+            if not names:
+                defmap[x][py] = can_move_here(tile, playing_field[x][py], commit_move=False)[0]
+            else:
+                defmap[x][py] = can_move_here(tile, playing_field[x][py], commit_move=False)
+    if tile.piece.type == "knight":
+        for dx, dy in [(1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1)]:
+            if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+                px = x + dx
+                py = y + dy
+                if not names:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)[0]
+                else:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)
+    if tile.piece.type in ["pawn", "sPawn"]:
+        for dx, dy in [(0, 1), (0, 2), (0, -1), (0, -2)]:
+            if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+                px = x + dx
+                py = y + dy
+                if not names:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)[0]
+                else:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)
+
+    if tile.piece.type in ["pawn", "sPawn", "king"]:
+        for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+            if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+                px = x + dx
+                py = y + dy
+                if not names:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)[0]
+                else:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)
+    if tile.piece.type == "king":
+        for dx, dy in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
+            if 0 <= x + dx <= 11 and 0 <= y + dy <= 11:
+                px = x + dx
+                py = y + dy
+                if not names:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)[0]
+                else:
+                    defmap[px][py] = can_move_here(tile, playing_field[px][py], commit_move=False)
     return defmap
 
 
